@@ -1,0 +1,209 @@
+cache:
+  paths:
+    - .gradle/cache
+    - .gradle/wrapper
+
+default:
+  tags:
+   - android   
+workflow: #The developer uses the commit tag to select the build option and the deployment environment
+    rules:
+    - if: '$CI_COMMIT_TAG == "build_r"'
+      variables:
+        VARIANT: "release"
+        FIREBASE_APP_ID: <release_token> 
+    - if: '$CI_COMMIT_TAG == "build_d"'
+      variables:
+        VARIANT: "debug"
+        FIREBASE_APP_ID: <debug_token>
+    - if: '$CI_COMMIT_TAG == "build_p"'
+      variables:
+        VARIANT: "production"
+        FIREBASE_APP_ID: <prod_token> 
+
+variables:
+  PROJECT_LOCATION: .
+  MODULE: app
+  
+stages:
+  - slack_start 
+  - lint
+  - unit_tests
+  - build
+  - deploy
+  - upload
+  - slack_finish 
+  - slack_fail
+
+Notify build start:
+  stage:
+    slack_start #Send notifications to slack that the build has started
+  script:
+    - >- 
+        curl
+        -X POST -H 'Content-type: application/json' 
+        --data "{
+                  \"blocks\": [
+                       {
+                        \"type\": \"section\",
+                        \"text\": {
+                        \"type\": \"mrkdwn\",
+                        \"text\": \":rocket: Start building *${CI_PROJECT_NAME}* — Android for *build_${VARIANT}* workflow:mario-1:\"
+                                  }
+                       }
+                              ]
+                }"  ${SLACK_CICD_WEBHOOK}
+
+
+go lint test:
+  stage:
+    lint
+  script:
+    - ./gradlew ":app:lint${VARIANT}"
+
+go unit tests:
+  stage:
+    unit_tests
+  script:
+    - ./gradlew "test${VARIANT}UnitTest"
+
+build:
+  stage:
+    build
+  artifacts:    #Adding the apk to the artifacts for ease of reuse
+    expire_in: 1 days
+    paths:
+    - app/build/outputs/apk/**/*.apk
+  script:
+    - ./gradlew ":app:assemble${VARIANT}"
+    - ls -la /$CI_PROJECT_DIR/app/build/outputs/apk/${VARIANT}
+  
+
+deployFirebase:
+  stage: 
+    deploy
+  artifacts:
+    expire_in: 1 days
+    paths:
+    - ./firebase_link_output
+  dependencies:
+    - build
+  script: #Create a service account for Firebase and upload a json file
+    - echo ${FIREBASE_SERVICE_ACCOUNT} | base64 -d > app/fb_secret.json
+    - export GOOGLE_APPLICATION_CREDENTIALS=app/secret.json
+    - firebase appdistribution:distribute app/build/outputs/apk/${VARIANT}/project-android-${VARIANT}.apk --app $FIREBASE_APP_ID | tee ./firebase_link_output
+
+Notify success:
+  stage:
+    slack_finish #Here we display information about the assembly, comite in a beautiful form in a slack
+  before_script:
+    - export FLINK="$(grep -Eo https://firebaseapp\.+ ./firebase_link_output)"  # get the link to Build
+    - export APKV="$(aapt dump badging ./app/build/outputs/apk/${VARIANT}/project-android-${VARIANT}.apk | grep "versionName" | sed -e "s/.*versionName='//" -e "s/' .*//")" #Getting the build version
+  script:
+    - echo ${APKV}
+    - echo ${FLINK}
+    - >- 
+        curl
+        -X POST -H 'Content-type: application/json' 
+        --data "{
+                \"attachments\": [
+                  {
+                \"color\": \"#00CC00\",
+                \"blocks\": [
+                  {
+                    \"type\": \"section\",
+                    \"text\": {
+                      \"type\": \"mrkdwn\",
+                      \"text\": \":fox_face: *Build Succeeded!*:mario_luigi_dance:\n\n\"
+                      
+                    }
+                  },
+                  {
+                    \"type\": \"section\",
+                    \"fields\": [
+                      {
+                        \"type\": \"mrkdwn\",
+                        \"text\": \"*Project:*\n${CI_PROJECT_NAME}\"
+                      },
+                      {
+                        \"type\": \"mrkdwn\",
+                        \"text\": \"*Workflow:*\n${VARIANT}\"
+                      },
+                      {
+                        \"type\": \"mrkdwn\",
+                        \"text\": \"*Date:*\n${CI_PIPELINE_CREATED_AT}\"
+                      },
+                      {
+                        \"type\": \"mrkdwn\",
+                        \"text\": \"*Platform:*\n:Android: Android\"
+                      },
+                      {
+                        \"type\": \"mrkdwn\",
+                        \"text\": \"\n*Git commit:*\n${CI_COMMIT_MESSAGE}\"
+                      },
+                      {
+                        \"type\": \"mrkdwn\",
+                        \"text\": \"*Author:*\n ${CI_COMMIT_AUTHOR}\"
+                      },
+                      {
+                        \"type\": \"mrkdwn\",
+                        \"text\": \"*Version:*\n ${APKV}\"
+                      }
+                    ]
+                  },
+                  {
+                    \"type\": \"context\",
+                    \"elements\": [
+                      {
+                        \"type\": \"plain_text\",
+                        \"text\": \"You need a VPN to download from Russia\nDownload link is available for 1 hour\",
+                        \"emoji\": true
+                      }
+                    ]
+                  },
+                  {
+                    \"type\": \"actions\",
+                    \"elements\": [
+                      {
+                        \"type\": \"button\",
+                        \"text\": {
+                          \"type\": \"plain_text\",
+                          \"text\": \"Download apk page\",
+                          \"emoji\": true
+                        },
+                        \"value\": \"click_me_123\",
+                        \"url\": \"${FLINK}\",
+                        \"action_id\": \"actionId-0\"
+                         }
+                       ]
+                      }
+                    ]
+                  }
+                ]
+                }"  ${SLACK_CICD_WEBHOOK}
+
+
+
+Notify failed:
+  stage: slack_fail #We process the error behavior if the pipeline has fallen
+  script:
+    - >- 
+        curl
+        -X POST -H 'Content-type: application/json' 
+        --data "{
+                 \"attachments\": [
+                  {
+                 \"color\": \"#FE3F44\",
+                  \"blocks\": [
+                       {
+                        \"type\": \"section\",
+                        \"text\": {
+                        \"type\": \"mrkdwn\",
+                        \"text\": \":this-is-fine-fire: Build failed *${CI_PROJECT_NAME}* — Android for *build_${VARIANT}* workflow:meow_code:\n<${CI_PIPELINE_URL}|Link to failed pipeline>\"
+                  }
+                  }
+                  ]     
+                 }
+                ]
+                }"  ${SLACK_CICD_WEBHOOK}
+  when: on_failure

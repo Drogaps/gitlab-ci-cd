@@ -19,6 +19,7 @@ We then send a message to Slack via webhooks to start the build.
 **Deploy:** We set the storage time for the artifacts, which we only need now. We export the credentials needed for Firebase and deploy.
 
 **Notify success:** We output information about the deployed build to Slack, output project, workflow, date, version, author and a link to the build.
+
 ![final](https://user-images.githubusercontent.com/40610049/219467616-ad2e959b-a0d4-46d7-84a4-636ad66197f5.gif)
 
 **Notify failed:** We handle the situation if the pipeline fails somewhere. It also informs in the slack and gives a link to the pipeline for convenience.

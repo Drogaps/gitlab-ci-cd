@@ -4,21 +4,24 @@ The pipeline is triggered by a tag on the commit, which also determines the type
 
 Tags: build_d, build_p, build_r
 
-####Stages:
-![](https://https://github.com/Drogaps/gitlab-ci-cd/blob/main/img/pipe.png)
+**Stages:**
+![pipe](https://user-images.githubusercontent.com/40610049/219467585-8afc03e3-5a26-41d9-b713-8241ab25616c.png)
 
-*Slack_start:*
+
+**Slack_start:**
 We then send a message to Slack via webhooks to start the build.
-![](https://https://github.com/Drogaps/gitlab-ci-cd/blob/main/img/start.gif)
 ![start](https://user-images.githubusercontent.com/40610049/219467257-a3f3b5b5-e626-4764-8925-cb6b49e77a77.gif)
 
-Lint: Then we use the app: lint module to run the tests. And then we start a unit
+**Lint:** Then we use the app: lint module to run the tests. And then we start a unit
 
-Build: We add the build to the artifacts for easy management.
+**Build:** We add the build to the artifacts for easy management.
 
-Deploy: We set the storage time for the artifacts, which we only need now. We export the credentials needed for Firebase and deploy.
+**Deploy:** We set the storage time for the artifacts, which we only need now. We export the credentials needed for Firebase and deploy.
 
-Notify success: We output information about the deployed build to Slack, output project, workflow, date, version, author and a link to the build.
-![](https://https://github.com/Drogaps/gitlab-ci-cd/blob/main/img/final.gif)
-Notify failed: We handle the situation if the pipeline fails somewhere. It also informs in the slack and gives a link to the pipeline for convenience.
-![](https://https://github.com/Drogaps/gitlab-ci-cd/blob/main/img/failed.gif)
+**Notify success:** We output information about the deployed build to Slack, output project, workflow, date, version, author and a link to the build.
+![final](https://user-images.githubusercontent.com/40610049/219467616-ad2e959b-a0d4-46d7-84a4-636ad66197f5.gif)
+
+**Notify failed:** We handle the situation if the pipeline fails somewhere. It also informs in the slack and gives a link to the pipeline for convenience.
+
+![failed](https://user-images.githubusercontent.com/40610049/219467643-83b5d51d-5656-4cfa-830e-c10136688af4.gif)
+

@@ -10,6 +10,8 @@ Tags: build_d, build_p, build_r
 *Slack_start:*
 We then send a message to Slack via webhooks to start the build.
 ![](https://https://github.com/Drogaps/gitlab-ci-cd/blob/main/img/start.gif)
+![start](https://user-images.githubusercontent.com/40610049/219467257-a3f3b5b5-e626-4764-8925-cb6b49e77a77.gif)
+
 Lint: Then we use the app: lint module to run the tests. And then we start a unit
 
 Build: We add the build to the artifacts for easy management.
